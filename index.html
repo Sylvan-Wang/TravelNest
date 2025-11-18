@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>TravelNest · 行程中心（AI Ready）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="tn-header">
+    <div class="tn-header-left">
+      <div class="tn-logo-circle">TN</div>
+      <div class="tn-logo-text">
+        <div class="tn-logo-title">TravelNest</div>
+      </div>
+    </div>
+    <div class="tn-header-right">
+      <button id="btn-new-trip" class="btn btn-primary">＋ 新建行程</button>
+    </div>
+  </header>
+
+  <!-- 主界面：左侧行程列表 + 右侧详情 -->
+  <main class="app-main">
+    <!-- 左侧：行程列表 + 用户区 -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <h2>我的行程</h2>
+      </div>
+      <ul id="trip-list" class="trip-list">
+        <!-- JS 注入 -->
+      </ul>
+      <div id="trip-empty-hint" class="sidebar-empty">
+        暂无行程。点击右上角「新建行程」，走一遍冷启动流程。
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-panel">
+          <div class="user-avatar" id="user-avatar">U</div>
+          <div class="user-info">
+            <div id="user-name-label" class="user-name">未登录</div>
+            <div id="user-meta-label" class="user-meta">点击右侧进入个人中心</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧：行程详情 -->
+    <section class="app-panel">
+      <div id="detail-empty" class="detail-empty">
+        请选择左侧一个行程，或点击右上角「新建行程」开始。
+      </div>
+
+      <div id="trip-detail" class="trip-detail hidden">
+        <!-- 顶部：标题 + 导出 -->
+        <div class="trip-detail-header">
+          <div>
+            <h2 id="trip-title">行程标题</h2>
+            <p id="trip-meta-text" class="trip-meta-text"></p>
+          </div>
+          <div class="trip-header-actions">
+            <button id="btn-export-word" class="btn btn-secondary btn-sm">
+              导出 Word
+            </button>
+            <button id="btn-export-excel" class="btn btn-secondary btn-sm">
+              导出 Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab tab--active" data-tab="overview">概览</button>
+          <button class="tab" data-tab="transport">交通</button>
+          <button class="tab" data-tab="stays">住宿</button>
+          <button class="tab" data-tab="attractions">景点</button>
+        </div>
+
+        <!-- 概览：总行程单 + 备注 -->
+        <div id="tab-overview" class="tab-panel tab-panel--active">
+          <div class="summary-grid">
+            <div><strong>出发城市：</strong><span id="ov-origin"></span></div>
+            <div><strong>目的地：</strong><span id="ov-dests"></span></div>
+            <div><strong>天数：</strong><span id="ov-days"></span></div>
+            <div><strong>预算档位：</strong><span id="ov-budget"></span></div>
+            <div><strong>节奏：</strong><span id="ov-pace"></span></div>
+            <div><strong>同行人：</strong><span id="ov-companions"></span></div>
+          </div>
+
+          <h3>行程备注（自由编辑）</h3>
+          <textarea
+            id="ov-notes"
+            class="textarea"
+            rows="4"
+            placeholder="这里可以写一些你自己的想法、注意事项、要避开的坑等等。"
+          ></textarea>
+
+          <h3>Day by Day 行程概览（含交通 / 景点 / 吃饭 / 住宿）</h3>
+          <p class="hint-text">
+            不同类型会用不同颜色和图标标出来：🚶景点 / 🍽吃饭 / 🛏住宿 / 🚆交通 / ☕休息。时间可以手动编辑。
+          </p>
+          <div id="ov-days-generated" class="result-itinerary"></div>
+        </div>
+
+        <!-- 交通 -->
+        <div id="tab-transport" class="tab-panel">
+          <h3>交通规划</h3>
+          <p class="hint-text">
+            下方是按天拆开的交通安排（仅展示交通类型）。顶部文本框保留给自由备注，未来可以接航班 / 火车 / 城市内出行 API。
+          </p>
+          <textarea
+            id="tp-text"
+            class="textarea"
+            rows="4"
+            placeholder="例如：&#10;整体交通策略、注意事项、退改签规则等。"
+          ></textarea>
+          <h4>Day by Day 交通安排</h4>
+          <div id="tp-dayplan" class="result-itinerary"></div>
+        </div>
+
+        <!-- 住宿 -->
+        <div id="tab-stays" class="tab-panel">
+          <h3>住宿规划</h3>
+          <p class="hint-text">
+            下方是按天拆开的住宿安排（仅展示住宿类型）。上方文本框适合写酒店筛选规则、预算区间等。
+          </p>
+          <textarea
+            id="st-text"
+            class="textarea"
+            rows="4"
+            placeholder="例如：&#10;东京 3 晚：新宿站附近，预算 80-120€ / 晚。"
+          ></textarea>
+          <h4>Day by Day 住宿安排</h4>
+          <div id="st-dayplan" class="result-itinerary"></div>
+        </div>
+
+        <!-- 景点 -->
+        <div id="tab-attractions" class="tab-panel">
+          <div class="attractions-header">
+            <h3>景点 & 玩法</h3>
+            <button id="btn-regenerate-poi" class="btn btn-secondary btn-sm">
+              重新用卡片挑选景点
+            </button>
+          </div>
+          <p class="hint-text">
+            上面卡片保留下来的景点会出现在这里。你可以修改描述。下面还会按 Day by Day 方式只看「景点」条目。
+          </p>
+
+          <!-- 原始卡片结果（可编辑文案） -->
+          <div id="at-list" class="at-list"></div>
+
+          <h4>Day by Day 景点安排</h4>
+          <div id="at-dayplan" class="result-itinerary"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Overlay：规划流程（冷启动 → 计划策略 → 卡片滑动） -->
+  <div id="planner-overlay" class="overlay hidden">
+    <div class="overlay-backdrop"></div>
+    <div class="overlay-content">
+      <div class="overlay-header">
+        <h2 id="planner-title">新建行程 · 冷启动</h2>
+        <button id="btn-close-planner" class="btn btn-ghost btn-sm">关闭</button>
+      </div>
+
+      <!-- 步骤 1：冷启动 -->
+      <div id="planner-step-onboarding" class="planner-step">
+        <div class="wizard-card wizard-card--inner">
+          <div class="wizard-header">
+            <h3>冷启动问题 · <span id="wizard-step-label">1 / 4</span></h3>
+            <p id="wizard-step-title"></p>
+          </div>
+          <div class="wizard-body">
+            <!-- step1 -->
+            <div class="wizard-step" data-step="1">
+              <p class="step-intro">先了解一下这趟出行的基本信息。</p>
+              <label class="field-label">出发城市</label>
+              <input id="ob-origin" type="text" placeholder="例如：上海 / 洛杉矶" />
+              <label class="field-label">和谁一起？</label>
+              <div class="chip-row" id="ob-companions-row">
+                <button class="chip" data-value="solo">一个人</button>
+                <button class="chip" data-value="friends">和朋友</button>
+                <button class="chip" data-value="family">和家人</button>
+                <button class="chip" data-value="partner">和伴侣</button>
+              </div>
+            </div>
+
+            <!-- step2 -->
+            <div class="wizard-step hidden" data-step="2">
+              <p class="step-intro">大概想去哪些城市？可以多选，也可以随机。</p>
+              <label class="field-label">常见目的地</label>
+              <div class="tag-row" id="ob-dest-tags">
+                <button class="tag" data-city="东京">东京</button>
+                <button class="tag" data-city="大阪">大阪</button>
+                <button class="tag" data-city="京都">京都</button>
+                <button class="tag" data-city="首尔">首尔</button>
+                <button class="tag" data-city="巴黎">巴黎</button>
+                <button class="tag" data-city="布拉格">布拉格</button>
+              </div>
+              <label class="field-label">手动添加城市</label>
+              <div class="inline-row">
+                <input id="ob-dest-input" type="text" placeholder="例如：伦敦 / 罗马" />
+                <button id="btn-add-dest" class="btn btn-secondary btn-sm">添加</button>
+              </div>
+              <div class="selected-list" id="ob-dest-list"></div>
+              <label class="checkbox-row">
+                <input id="ob-random-dest" type="checkbox" />
+                <span>我还没想好，先让系统随机帮我安排</span>
+              </label>
+            </div>
+
+            <!-- step3 -->
+            <div class="wizard-step hidden" data-step="3">
+              <p class="step-intro">时间和天数。</p>
+              <label class="field-label">大概几天？</label>
+              <div class="inline-row">
+                <input id="ob-days" type="number" min="1" max="60" placeholder="例如：5" />
+                <span>天</span>
+              </div>
+              <label class="field-label">时间紧不紧？</label>
+              <div class="chip-row" id="ob-time-row">
+                <button class="chip" data-value="very-tight">时间很紧</button>
+                <button class="chip" data-value="normal">还可以</button>
+                <button class="chip" data-value="relaxed">比较宽松</button>
+              </div>
+            </div>
+
+            <!-- step4 -->
+            <div class="wizard-step hidden" data-step="4">
+              <p class="step-intro">预算 & 节奏。</p>
+              <label class="field-label">预算档位</label>
+              <div class="chip-row" id="ob-budget-row">
+                <button class="chip" data-value="tight">低档</button>
+                <button class="chip" data-value="medium">中档</button>
+                <button class="chip" data-value="loose">高档</button>
+              </div>
+
+              <label class="field-label">预算币种</label>
+              <select id="ob-currency" class="select">
+                <option value="¥">人民币（¥）</option>
+                <option value="€">欧元（€）</option>
+                <option value="$">美元（$）</option>
+              </select>
+
+              <label class="field-label">旅行节奏</label>
+              <div class="chip-row" id="ob-pace-row">
+                <button class="chip" data-value="chill">佛系慢游</button>
+                <button class="chip" data-value="balanced">节奏适中</button>
+                <button class="chip" data-value="intense">高效打卡</button>
+              </div>
+              <div class="summary-box">
+                <h3>行程草稿画像</h3>
+                <p><strong>出发城市：</strong><span id="ob-summary-origin">——</span></p>
+                <p><strong>目的地：</strong><span id="ob-summary-dests">——</span></p>
+                <p><strong>天数：</strong><span id="ob-summary-days">——</span></p>
+                <p><strong>预算 & 节奏：</strong><span id="ob-summary-budget-pace">——</span></p>
+              </div>
+            </div>
+          </div>
+          <div class="wizard-footer">
+            <button id="btn-wizard-back" class="btn btn-ghost btn-sm">上一步</button>
+            <div class="wizard-footer-right">
+              <span id="wizard-error" class="error-text"></span>
+              <button id="btn-wizard-next" class="btn btn-primary btn-sm">下一步</button>
+              <button id="btn-to-plan" class="btn btn-primary btn-sm hidden">
+                看整体行程策略
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步骤 2：整体行程策略 -->
+      <div id="planner-step-plan" class="planner-step hidden">
+        <div class="plan-card">
+          <div class="plan-header">
+            <h3>选择一个整体行程策略</h3>
+            <p class="step-intro">
+              冷启动信息确定之后，这里给出 2~3 种不同风格的 Day 分配方案。选一个作为这次出行的底稿。
+            </p>
+          </div>
+          <div id="plan-list" class="plan-list">
+            <!-- JS 注入 -->
+          </div>
+          <div class="plan-footer">
+            <span id="plan-error" class="error-text"></span>
+            <button id="btn-plan-back" class="btn btn-ghost btn-sm">返回修改冷启动</button>
+            <button id="btn-plan-next" class="btn btn-primary btn-sm">用这个方案</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步骤 3：卡片滑动选景点 -->
+      <div id="planner-step-swipe" class="planner-step hidden">
+        <div class="swipe-card">
+          <div class="swipe-header">
+            <h3>用卡片选景点</h3>
+            <p class="step-intro">
+              右滑 = 加入行程 · 左滑 = 这次不要。完成后会自动生成 Day by Day（含交通 / 景点 / 吃饭 / 住宿）。
+            </p>
+            <p id="swipe-counter" class="swipe-counter">卡片 1 / 1</p>
+          </div>
+          <div class="swipe-area">
+            <div id="swipe-card" class="poi-card">
+              <!-- JS 注入 -->
+            </div>
+          </div>
+          <div class="swipe-actions">
+            <button id="btn-swipe-dislike" class="btn btn-secondary">左滑 · 不要</button>
+            <button id="btn-swipe-like" class="btn btn-primary">右滑 · 加入</button>
+          </div>
+          <button id="btn-swipe-finish" class="btn btn-ghost swipe-finish">
+            差不多了，生成并保存行程
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 用户中心 Overlay -->
+  <div id="user-overlay" class="overlay hidden">
+    <div class="overlay-backdrop"></div>
+    <div class="overlay-content">
+      <div class="overlay-header">
+        <h2>个人中心</h2>
+        <button id="btn-close-user" class="btn btn-ghost btn-sm">关闭</button>
+      </div>
+      <div class="planner-step">
+        <div class="wizard-card wizard-card--inner">
+          <div class="wizard-header">
+            <h3>基本资料</h3>
+            <p class="step-intro">
+              这里只做一个轻量的“本地账号”：昵称、默认币种、冷启动默认偏好等。后续接真正账号体系时可以复用结构。
+            </p>
+          </div>
+          <div class="wizard-body">
+            <label class="field-label">昵称</label>
+            <input id="user-name" type="text" placeholder="例如：小宇 / 小红书ID" />
+
+            <label class="field-label">默认预算币种</label>
+            <select id="user-currency" class="select">
+              <option value="¥">人民币（¥）</option>
+              <option value="€">欧元（€）</option>
+              <option value="$">美元（$）</option>
+            </select>
+
+            <h4 style="margin:8px 0 4px;font-size:13px;">冷启动默认偏好</h4>
+            <p class="hint-text">
+              新建行程时会自动带入这些默认值（依然可以在冷启动步骤里改）。
+            </p>
+
+            <label class="field-label">默认出发城市</label>
+            <input id="user-default-origin" type="text" placeholder="例如：上海 / 北京 / Paris" />
+
+            <label class="field-label">默认同行人</label>
+            <select id="user-default-companions" class="select">
+              <option value="">（不设默认）</option>
+              <option value="solo">一个人</option>
+              <option value="friends">和朋友</option>
+              <option value="family">和家人</option>
+              <option value="partner">和伴侣</option>
+            </select>
+
+            <label class="field-label">默认天数</label>
+            <input id="user-default-days" type="number" min="1" max="60" placeholder="例如：5" />
+
+            <label class="field-label">默认预算档位</label>
+            <select id="user-default-budget" class="select">
+              <option value="">（不设默认）</option>
+              <option value="tight">低档</option>
+              <option value="medium">中档</option>
+              <option value="loose">高档</option>
+            </select>
+
+            <label class="field-label">默认旅行节奏</label>
+            <select id="user-default-pace" class="select">
+              <option value="">（不设默认）</option>
+              <option value="chill">佛系慢游</option>
+              <option value="balanced">节奏适中</option>
+              <option value="intense">高效打卡</option>
+            </select>
+          </div>
+          <div class="wizard-footer">
+            <span id="user-error" class="error-text"></span>
+            <button id="btn-save-user" class="btn btn-primary btn-sm">
+              保存资料
+            </button>
+          </div>
+        </div>
+
+        <div class="wizard-card wizard-card--inner" style="margin-top:10px;">
+          <div class="wizard-header">
+            <h3>生成日志 & 版本</h3>
+            <p class="step-intro">
+              这里简单记录每次行程生成 / 重新规划的时间和版本号，方便之后做更完整的版本管理。
+            </p>
+          </div>
+          <div class="wizard-body user-log-list" id="user-log-list">
+            <!-- JS 注入 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<!-- 登录 / 注册 Overlay -->
+<div id="auth-overlay" class="overlay hidden">
+  <div class="overlay-backdrop"></div>
+  <div class="overlay-content">
+    <div class="overlay-header">
+      <h2>登录 / 注册</h2>
+      <button id="btn-close-auth" class="btn btn-ghost btn-sm">关闭</button>
+    </div>
+
+    <div class="planner-step">
+      <div class="wizard-card wizard-card--inner">
+        <div class="wizard-header">
+          <h3>登录 TravelNest</h3>
+          <p class="step-intro">
+            登录后可以保存你的偏好和行程，后续也方便接入 Google / 云端账号。
+          </p>
+        </div>
+
+        <div class="wizard-body">
+          <!-- Google 登录 -->
+          <button id="btn-auth-google" class="btn btn-outline btn-full auth-google-btn">
+            使用 Google 继续
+          </button>
+
+          <div class="auth-divider">
+            <span class="line"></span>
+            <span class="text">或使用邮箱</span>
+            <span class="line"></span>
+          </div>
+
+          <!-- 登录 / 注册 tab -->
+          <div class="auth-tabs">
+            <button
+              class="tab tab--active"
+              data-tab="login"
+              type="button"
+            >
+              登录
+            </button>
+            <button
+              class="tab"
+              data-tab="register"
+              type="button"
+            >
+              注册
+            </button>
+          </div>
+
+          <div class="tab-panels">
+            <!-- 登录面板 -->
+            <div id="tab-login" class="tab-panel tab-panel--active">
+              <form id="auth-login-form">
+                <label class="field-label" for="auth-login-email">邮箱</label>
+                <input
+                  id="auth-login-email"
+                  type="email"
+                  class="auth-input"
+                  placeholder="you@example.com"
+                />
+
+                <label class="field-label" for="auth-login-password">密码</label>
+                <input
+                  id="auth-login-password"
+                  type="password"
+                  class="auth-input"
+                  placeholder="至少 8 位"
+                />
+
+                <div id="auth-login-error" class="auth-error"></div>
+
+                <button type="submit" class="btn btn-primary btn-sm btn-full">
+                  登录
+                </button>
+              </form>
+            </div>
+
+            <!-- 注册面板 -->
+            <div id="tab-register" class="tab-panel">
+              <form id="auth-register-form">
+                <label class="field-label" for="auth-reg-email">邮箱</label>
+                <input
+                  id="auth-reg-email"
+                  type="email"
+                  class="auth-input"
+                  placeholder="you@example.com"
+                />
+
+                <label class="field-label" for="auth-reg-password">密码</label>
+                <input
+                  id="auth-reg-password"
+                  type="password"
+                  class="auth-input"
+                  placeholder="至少 8 位"
+                />
+
+                <label class="field-label" for="auth-reg-password2">确认密码</label>
+                <input
+                  id="auth-reg-password2"
+                  type="password"
+                  class="auth-input"
+                  placeholder="再次输入密码"
+                />
+
+                <div id="auth-register-error" class="auth-error"></div>
+
+                <button type="submit" class="btn btn-primary btn-sm btn-full">
+                  注册并登录
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script src="main.js"></script>
+</body>
+</html>
