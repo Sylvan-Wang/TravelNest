@@ -1,3 +1,167 @@
+// ===== Supabase Auth (Email) =====
+const SUPABASE_URL = "https://pvzvmgledurzuropbdnb.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2enZtZ2xlZHVyenVyb3BiZG5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTU4MTMsImV4cCI6MjA3OTY3MTgxM30.n7qENK8bGv0qY3LP1vrodjgyz1zyymP9bzpm52cUsv0";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// DOM
+const authOverlay = document.getElementById("auth-overlay");
+const btnCloseAuth = document.getElementById("btn-close-auth");
+
+const loginForm = document.getElementById("auth-login-form");
+const loginEmail = document.getElementById("auth-login-email");
+const loginPwd = document.getElementById("auth-login-password");
+const loginErr = document.getElementById("auth-login-error");
+
+const regForm = document.getElementById("auth-register-form");
+const regEmail = document.getElementById("auth-reg-email");
+const regPwd = document.getElementById("auth-reg-password");
+const regPwd2 = document.getElementById("auth-reg-password2");
+const regErr = document.getElementById("auth-register-error");
+
+const btnGoogle = document.getElementById("btn-auth-google");
+
+// sidebar user area
+const userAvatar = document.getElementById("user-avatar");
+const userNameLabel = document.getElementById("user-name-label");
+const userMetaLabel = document.getElementById("user-meta-label");
+
+// open / close overlay
+function openAuthOverlay() {
+  if (!authOverlay) return;
+  authOverlay.classList.remove("hidden");
+  if (loginErr) loginErr.textContent = "";
+  if (regErr) regErr.textContent = "";
+}
+
+function closeAuthOverlay() {
+  if (!authOverlay) return;
+  authOverlay.classList.add("hidden");
+}
+
+btnCloseAuth?.addEventListener("click", closeAuthOverlay);
+
+// click user area -> open auth
+userAvatar?.addEventListener("click", openAuthOverlay);
+userNameLabel?.addEventListener("click", openAuthOverlay);
+userMetaLabel?.addEventListener("click", openAuthOverlay);
+
+// tabs switch (login/register)
+(function bindAuthTabs() {
+  if (!authOverlay) return;
+  const tabs = authOverlay.querySelectorAll(".auth-tabs .tab");
+  const panels = authOverlay.querySelectorAll(".tab-panels .tab-panel");
+  if (!tabs.length || !panels.length) return;
+
+  tabs.forEach((tabBtn) => {
+    tabBtn.addEventListener("click", () => {
+      const target = tabBtn.getAttribute("data-tab"); // login / register
+
+      tabs.forEach((t) => t.classList.remove("tab--active"));
+      tabBtn.classList.add("tab--active");
+
+      panels.forEach((p) => p.classList.remove("tab-panel--active"));
+      const panel = authOverlay.querySelector(`#tab-${target}`);
+      panel?.classList.add("tab-panel--active");
+
+      if (loginErr) loginErr.textContent = "";
+      if (regErr) regErr.textContent = "";
+    });
+  });
+})();
+
+// email login
+loginForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (loginErr) loginErr.textContent = "";
+
+  const email = (loginEmail?.value || "").trim();
+  const password = (loginPwd?.value || "").trim();
+
+  if (!email || !password) {
+    if (loginErr) loginErr.textContent = "请输入邮箱和密码";
+    return;
+  }
+
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    if (loginErr) loginErr.textContent = error.message;
+    return;
+  }
+
+  closeAuthOverlay();
+});
+
+// email register
+regForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (regErr) regErr.textContent = "";
+
+  const email = (regEmail?.value || "").trim();
+  const password = (regPwd?.value || "").trim();
+  const password2 = (regPwd2?.value || "").trim();
+
+  if (!email || !password || !password2) {
+    if (regErr) regErr.textContent = "请完整填写邮箱与密码";
+    return;
+  }
+  if (password.length < 8) {
+    if (regErr) regErr.textContent = "密码至少 8 位";
+    return;
+  }
+  if (password !== password2) {
+    if (regErr) regErr.textContent = "两次输入的密码不一致";
+    return;
+  }
+
+  const { error } = await sb.auth.signUp({ email, password });
+  if (error) {
+    if (regErr) regErr.textContent = error.message;
+    return;
+  }
+
+  closeAuthOverlay();
+});
+
+// google oauth (optional)
+btnGoogle?.addEventListener("click", async () => {
+  const redirectTo = window.location.origin + window.location.pathname;
+
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+
+  if (error && loginErr) loginErr.textContent = error.message;
+});
+
+// session -> update sidebar UI
+function setUserUI(session) {
+  if (!userNameLabel || !userMetaLabel || !userAvatar) return;
+
+  if (session?.user) {
+    const email = session.user.email || "已登录";
+    userNameLabel.textContent = email;
+    userMetaLabel.textContent = "已登录";
+    userAvatar.textContent = (email[0] || "U").toUpperCase();
+  } else {
+    userNameLabel.textContent = "未登录";
+    userMetaLabel.textContent = "点击右侧进入个人中心";
+    userAvatar.textContent = "U";
+  }
+}
+
+(async function bootAuth() {
+  const { data } = await sb.auth.getSession();
+  setUserUI(data?.session);
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    setUserUI(session);
+  });
+})();
+
+
 // ============== 常量 & 全局状态 ==============
 
 const STORAGE_KEY = "TN_TRIPS_V2";
