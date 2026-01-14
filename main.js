@@ -138,6 +138,43 @@ btnGoogle?.addEventListener("click", async () => {
 
 // session -> update sidebar UI
 function setUserUI(session) {
+  // ✅ 关键：把 Supabase 登录态同步到你项目里“真正判断登录”的那套状态
+function syncLoginFlagFromSupabase(session) {
+  const loggedIn = !!session?.user;
+
+  // 1) 同步到你自己的 userProfile（你后面 renderUserSummary/保存偏好都依赖它）
+  userProfile.loggedIn = loggedIn;
+
+  if (loggedIn) {
+    const email = session.user.email || "";
+    if (!userProfile.name && email) {
+      userProfile.name = email.split("@")[0]; // 给个默认昵称
+    }
+  }
+
+  // 2) 存盘：刷新也不丢
+  if (typeof saveUserProfile === "function") saveUserProfile();
+
+  // 3) 刷新左下角头像/文案（你后面用的是 renderUserSummary）
+  if (typeof renderUserSummary === "function") renderUserSummary();
+
+  // 4) 可选：如果你坚持用 AuthStore 做“是否登录”判断，也同步一份
+  // （你 setupUserCenter 里现在就是看 AuthStore）
+  if (typeof AuthStore !== "undefined") {
+    if (loggedIn) {
+      const email = session.user.email || "";
+      AuthStore.save({
+        uid: session.user.id || ("sb-" + email),
+        email,
+        provider: "supabase",
+        idToken: session.access_token || "sb-session", // 给它一个非空值即可通过 isLoggedIn()
+        expiresAt: session.expires_at ? session.expires_at * 1000 : Date.now() + 60 * 60 * 1000,
+      });
+    } else {
+      AuthStore.clear();
+    }
+  }
+}
   if (!userNameLabel || !userMetaLabel || !userAvatar) return;
 
   if (session?.user) {
@@ -155,9 +192,11 @@ function setUserUI(session) {
 (async function bootAuth() {
   const { data } = await sb.auth.getSession();
   setUserUI(data?.session);
+  syncLoginFlagFromSupabase(data?.session);   // ✅ 新增
 
   sb.auth.onAuthStateChange((_event, session) => {
     setUserUI(session);
+    syncLoginFlagFromSupabase(session);       // ✅ 新增
   });
 })();
 
@@ -1920,4 +1959,5 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-new-trip").onclick = () =>
     openPlanner("new", null);
 });
+
 
