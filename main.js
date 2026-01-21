@@ -189,7 +189,8 @@ function syncLoginFlagFromSupabase(session) {
   }
 }
 
-(async function bootAuth() {
+
+/*(async function bootAuth() {
   const { data } = await sb.auth.getSession();
   setUserUI(data?.session);
   syncLoginFlagFromSupabase(data?.session);   // ✅ 新增
@@ -198,7 +199,7 @@ function syncLoginFlagFromSupabase(session) {
     setUserUI(session);
     syncLoginFlagFromSupabase(session);       // ✅ 新增
   });
-})();
+})();*/
 
 
 // ============== 常量 & 全局状态 ==============
@@ -468,6 +469,8 @@ function renderAttractions(trip) {
     atListEl.appendChild(item);
   });
 }
+
+
 
 // ============== DayPlan 生成 & 渲染 ==============
 
@@ -1945,19 +1948,78 @@ const AuthStore = {
 
 // ============== 初始化 ==============
 
+function applyLoginUI(session) {
+  // 1) 直接更新 sidebar（不依赖 userProfile）
+  setUserUI(session);
+
+  // 2) 同步到 userProfile（你个人中心/偏好那套逻辑依赖它）
+  const loggedIn = !!session?.user;
+  userProfile.loggedIn = loggedIn;
+
+  const email = session?.user?.email || "";
+  if (loggedIn) {
+    if (!userProfile.name && email) userProfile.name = email.split("@")[0];
+  }
+
+  saveUserProfile?.();
+  renderUserSummary?.();
+
+ 
+}
+function showLoginSuccessAnim(email) {
+  if (!userAvatar || !userMetaLabel) return;
+
+  // 头像字母
+  const letter = (email?.[0] || "U").toUpperCase();
+  userAvatar.textContent = letter;
+
+  // 注入 √ badge（如果没有）
+  let badge = userAvatar.querySelector(".login-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "login-badge";
+    badge.textContent = "✓";
+    userAvatar.style.position = "relative";
+    userAvatar.appendChild(badge);
+  }
+
+  // meta 文案 + 动画 class
+  userMetaLabel.textContent = "已登录";
+  userMetaLabel.classList.remove("login-flash");
+  void userMetaLabel.offsetWidth; // 触发重绘，让动画每次都生效
+  userMetaLabel.classList.add("login-flash");
+
+  userAvatar.classList.remove("avatar-pop");
+  void userAvatar.offsetWidth;
+  userAvatar.classList.add("avatar-pop");
+}
+
+
+async function initSupabaseAuth() {
+  const { data } = await sb.auth.getSession();
+  applyLoginUI(data?.session);
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    applyLoginUI(session);
+  });
+}
+
+
 document.addEventListener("DOMContentLoaded", () => {
   loadTrips();
   loadUserProfile();
   loadLogs();
 
+  initSupabaseAuth(); // ✅ 新增：启动 Supabase 登录态监听（现在不会抢跑）
+
+
   renderTripList();
   renderUserSummary();
   setupTabs();
   setupUserCenter();
-  setupAuthOverlay(); // ✅ 新增：绑定登录/注册弹窗的事件
+  //setupAuthOverlay(); // ✅ 新增：绑定登录/注册弹窗的事件
 
   document.getElementById("btn-new-trip").onclick = () =>
     openPlanner("new", null);
 });
-
 
