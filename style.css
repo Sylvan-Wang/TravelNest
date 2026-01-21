@@ -1168,3 +1168,94 @@ input[type="number"]:focus {
     padding-inline: 8px;
   }
 }
+
+/* 登录成功：文字闪一下 */
+.login-flash {
+  animation: loginFlash 900ms ease;
+}
+
+@keyframes loginFlash {
+  0%   { transform: translateY(0); opacity: 1; }
+  25%  { transform: translateY(-2px); opacity: 1; }
+  60%  { transform: translateY(0); opacity: 1; }
+  100% { opacity: 1; }
+}
+
+/* 头像 pop 一下 */
+.avatar-pop {
+  animation: avatarPop 420ms ease;
+}
+
+@keyframes avatarPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* 右上角的 √ badge */
+#user-avatar .login-badge {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  line-height: 1;
+  background: #22c55e;  /* 绿色 */
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+/* ===== Utils ===== */
+.hidden { display: none !important; }
+
+/* =========================
+   Planner Overlay Responsive
+   ========================= */
+
+/* 1) overlay 盖满屏幕 */
+#planner-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 9999;
+}
+
+/* 2) 给 overlay 背景（如果你已有可忽略） */
+#planner-overlay:not(.hidden) {
+  background: rgba(0,0其他,0,.35
+
+  .tn-model-check{
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.tn-model-check__row{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tn-model-check__row input{
+  width: 18px;
+  height: 18px;
+}
+
+.tn-model-check__text{
+  font-size: 14px;
+}
+
+.tn-model-check__hint{
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(0,0,0,.55);
+}
